@@ -2,6 +2,7 @@ import { useState } from "react";
 import { PropertySelect } from "./components/PropertySelect";
 import { EXPERIMENTS, } from "./lib/data";
 import "./App.css";
+import { Scatterplot } from "./components/Scatterplot";
 
 export default function App() {
   // Sensible defaults: two output measurements that actually vary.
@@ -24,6 +25,8 @@ export default function App() {
         <PropertySelect label="Y axis" value={yKey} onChange={setYKey} />
         <PropertySelect label="Colour by" value={colorKey} onChange={setColorKey} allowNone />
       </div>
+
+      <Scatterplot xKey={xKey} yKey={yKey} colorKey={colorKey} />
     </div>
   );
 }
