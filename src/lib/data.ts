@@ -42,3 +42,8 @@ function buildExperiments(): Experiment[] {
 export const PROPERTIES: Property[] = buildProperties();
 export const EXPERIMENTS: Experiment[] = buildExperiments();
 
+// Look up a property's kind/label without repeated scans
+const PROPERTY_BY_KEY = new Map(PROPERTIES.map((p) => [p.key, p]));
+export function getProperty(key: string): Property | undefined {
+    return PROPERTY_BY_KEY.get(key);
+}
