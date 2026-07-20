@@ -1,4 +1,4 @@
-import { PROPERTIES } from "../lib/data";
+import { isDegenerate, PROPERTIES } from "../lib/data";
 
 interface Props {
     label: string;
@@ -13,12 +13,14 @@ export function PropertySelect({ label, value, onChange, allowNone = false }: Pr
     const outputs = PROPERTIES.filter((p) => p.kind === "output");
 
     const renderOption = (key: string) => {
+        const flat = isDegenerate(key);
         return (
-            <option key={key} value="key">
+            <option key={key} value={key}>
                 {key}
+                {flat ? " (constant)" : ""}
             </option>
-        )
-    }
+        );
+    };
 
     return (
         <label className="field">

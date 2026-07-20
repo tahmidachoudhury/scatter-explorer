@@ -47,3 +47,16 @@ const PROPERTY_BY_KEY = new Map(PROPERTIES.map((p) => [p.key, p]));
 export function getProperty(key: string): Property | undefined {
     return PROPERTY_BY_KEY.get(key);
 }
+
+//? A property is "degenerate" if every experiment has the same value for it (e.g. an ingredient that is 0.0 everywhere). Plotting it gives a flat line with no spread, so the UI flags these rather than rendering a broken axis.
+
+export function isDegenerate(key: string): boolean {
+    let min = Infinity;
+    let max = -Infinity;
+    for (const exp of EXPERIMENTS) {
+        const v = exp.values[key];
+        if (v < min) min = v;
+        if (v > max) max = v;
+    }
+    return min === max;
+}

@@ -18,11 +18,8 @@ interface HoverState {
     cy: number;
 }
 
-/**
- * Renders the scatterplot as SVG. We use d3 only for the maths (scales, axis
- * ticks, colour interpolation) and let React own the DOM — this keeps the
- * component declarative and easy to reason about, instead of d3 mutating nodes.
- */
+// Renders the scatterplot as SVG. We use d3 only for the maths (scales, axis ticks, colour interpolation) and let React own the DOM — this keeps the component declarative and easy to reason about, instead of d3 mutating nodes.
+
 export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }: Props) {
     const [hover, setHover] = useState<HoverState | null>(null);
 
@@ -43,7 +40,6 @@ export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }:
         const xScale = d3.scaleLinear().domain(domainFor(xKey)).range([0, innerW]).nice();
         const yScale = d3.scaleLinear().domain(domainFor(yKey)).range([innerH, 0]).nice();
 
-        // this colours the nodes from hot to cold, converting numbers to a scale of colours
         let colorScale: d3.ScaleSequential<string> | null = null;
         if (colorKey) {
             const [min, max] = d3.extent(EXPERIMENTS, (e) => e.values[colorKey]) as [number, number];
@@ -62,7 +58,7 @@ export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }:
         <div className="chart-wrap">
             <svg width={width} height={height} role="img" aria-label={`Scatterplot of ${yKey} versus ${xKey}`}>
                 <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-                    {/* Gridlines + axis ticks */}
+                    {/* Gridlines + axis ticks  */}
                     {yTicks.map((t) => (
                         <g key={`y-${t}`} transform={`translate(0,${yScale(t)})`}>
                             <line x1={0} x2={innerW} className="gridline" />
@@ -126,7 +122,7 @@ export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }:
     );
 }
 
-/** Compact numeric formatting: avoids long float tails on the axis. */
+// Compact numeric formatting: avoids long float tails on the axis. 
 function formatTick(v: number): string {
     if (Math.abs(v) >= 1000) return d3.format(".2s")(v);
     return d3.format(".3~f")(v);
