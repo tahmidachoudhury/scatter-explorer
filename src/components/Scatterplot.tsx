@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import * as d3 from "d3";
+import { motion } from "framer-motion";
 import { EXPERIMENTS, type Experiment } from "../lib/data";
 
 interface Props {
@@ -85,19 +86,22 @@ export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }:
                     </text>
 
                     {/* Points */}
-                    {EXPERIMENTS.map((exp) => {
+                    {EXPERIMENTS.map((exp, index) => {
                         const cx = xScale(exp.values[xKey]);
                         const cy = yScale(exp.values[yKey]);
                         const fill = colorScale ? colorScale(exp.values[colorKey]) : "var(--accent)";
                         const isActive = hover?.exp.name === exp.name;
                         return (
-                            <circle
-                                key={exp.name}
+                            <motion.circle
+                                key={`${exp.name}-${xKey}-${yKey}`}
                                 cx={cx}
                                 cy={cy}
                                 r={isActive ? 9 : 6}
                                 fill={fill}
                                 className={`point ${isActive ? "point-active" : ""}`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                transition={{ duration: 0.2, delay: index * 0.03 }}
                                 onMouseEnter={() => setHover({ exp, cx, cy })}
                                 onMouseLeave={() => setHover(null)}
                             />
@@ -147,6 +151,12 @@ function Tooltip({
     return (
         <div className="tooltip" style={{ left: offsetX + hover.cx + 14, top: offsetY + hover.cy - 8 }}>
             <div className="tooltip-title">{hover.exp.name}</div>
+            {/* {Object.entries(v).map(([key, value]) => (
+                <div className="tooltip-row" key={key}>
+                    <span>{key}</span>
+                    <span>{value}</span>
+                </div>
+            ))} */}
             <div className="tooltip-row">
                 <span>{xKey}</span>
                 <span>{v[xKey]}</span>
