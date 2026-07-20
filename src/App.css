@@ -102,7 +102,7 @@ select:focus {
 
 .gridline {
   stroke: var(--border);
-  stroke-width: 1;
+  stroke-width: 0.3;
 }
 .tick-label {
   fill: var(--muted);
