@@ -41,12 +41,16 @@ export function DataTable() {
         </Select>
       </FormControl>
 
-      <Box sx={{ height: 460, width: "100%" }}>
+      <Box sx={{ width: "100%" }}>
         <DataGrid
           rows={rows}
           columns={columns}
+          // autoHeight makes the grid grow to fit exactly the rows on the
+          // current page, so switching rows-per-page never leaves a vertical
+          // scrollbar or empty space.
+          autoHeight
           initialState={{ pagination: { paginationModel: { pageSize: 10 } } }}
-          pageSizeOptions={[10, 25, 50]}
+          pageSizeOptions={[5, 10, 25]}
           disableRowSelectionOnClick
           sx={{ border: "1px solid #a7a7a7", borderRadius: 2 }}
         />
