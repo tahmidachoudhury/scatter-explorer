@@ -1,6 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as d3 from "d3";
-import { motion } from "framer-motion";
 import { EXPERIMENTS, type Experiment } from "../lib/data";
 
 interface Props {
@@ -19,144 +18,90 @@ interface HoverState {
     cy: number;
 }
 
-// Renders the scatterplot as SVG. We use d3 only for the maths (scales, axis ticks, colour interpolation) and let React own the DOM — this keeps the component declarative and easy to reason about, instead of d3 mutating nodes.
-
 export function Scatterplot({ xKey, yKey, colorKey, width = 720, height = 520 }: Props) {
+    const svgRef = useRef<SVGSVGElement>(null);
     const [hover, setHover] = useState<HoverState | null>(null);
 
     const innerW = width - MARGIN.left - MARGIN.right;
     const innerH = height - MARGIN.top - MARGIN.bottom;
 
-    // Recompute scales only when the selected axes or size change.
-    const { xScale, yScale, colorScale } = useMemo(() => {
-        // A degenerate axis has zero spread; pad it so points aren't stacked on
-        // the border and the axis still renders sensible ticks.
-        const domainFor = (key: string): [number, number] => {
-            const [min, max] = d3.extent(EXPERIMENTS, (e) => e.values[key]) as [number, number];
-            if (min === max) return [min - 1, max + 1];
-            const pad = (max - min) * 0.05;
-            return [min - pad, max + pad];
-        };
+    // Legend needs the colour scale too, so it lives outside the draw effect.
+    const colorScale = useMemo(() => {
+        if (!colorKey) return null;
+        const [min, max] = d3.extent(EXPERIMENTS, (e) => e.values[colorKey]) as [number, number];
+        return d3.scaleSequential(d3.interpolateViridis).domain(min === max ? [min, min + 1] : [min, max]);
+    }, [colorKey]);
 
-        const xScale = d3.scaleLinear().domain(domainFor(xKey)).range([0, innerW]).nice();
-        const yScale = d3.scaleLinear().domain(domainFor(yKey)).range([innerH, 0]).nice();
+    useEffect(() => {
+        const x = d3.scaleLinear().domain(domainFor(xKey)).range([0, innerW]).nice();
+        const y = d3.scaleLinear().domain(domainFor(yKey)).range([innerH, 0]).nice();
 
-        let colorScale: d3.ScaleSequential<string> | null = null;
-        if (colorKey) {
-            const [min, max] = d3.extent(EXPERIMENTS, (e) => e.values[colorKey]) as [number, number];
-            colorScale = d3
-                .scaleSequential(d3.interpolateViridis)
-                .domain(min === max ? [min, min + 1] : [min, max]);
-        }
+        const svg = d3.select(svgRef.current);
+        svg.selectAll("*").remove();
+        const g = svg.append("g").attr("transform", `translate(${MARGIN.left},${MARGIN.top})`);
 
-        return { xScale, yScale, colorScale };
-    }, [xKey, yKey, colorKey, innerW, innerH]);
+        // Negative tick sizes give us the gridlines for free.
+        g.append("g")
+            .attr("class", "axis")
+            .attr("transform", `translate(0,${innerH})`)
+            .call(d3.axisBottom(x).ticks(6).tickSize(-innerH).tickFormat(formatTick));
+        g.append("g").attr("class", "axis").call(d3.axisLeft(y).ticks(6).tickSize(-innerW).tickFormat(formatTick));
 
-    const xTicks = xScale.ticks(6);
-    const yTicks = yScale.ticks(6);
+        g.append("text").attr("class", "axis-title").attr("x", innerW / 2).attr("y", innerH + 46).attr("text-anchor", "middle").text(xKey);
+        g.append("text").attr("class", "axis-title").attr("transform", `translate(-52,${innerH / 2}) rotate(-90)`).attr("text-anchor", "middle").text(yKey);
+
+        g.append("g")
+            .selectAll("circle")
+            .data(EXPERIMENTS)
+            .join("circle")
+            .attr("class", "point")
+            .attr("cx", (d) => x(d.values[xKey]))
+            .attr("cy", (d) => y(d.values[yKey]))
+            .attr("r", 6)
+            .attr("fill", (d) => (colorScale ? colorScale(d.values[colorKey]) : "var(--accent)"))
+            .on("mouseenter", function (_, d) {
+                d3.select(this).attr("r", 9).classed("point-active", true);
+                setHover({ exp: d, cx: x(d.values[xKey]), cy: y(d.values[yKey]) });
+            })
+            .on("mouseleave", function () {
+                d3.select(this).attr("r", 6).classed("point-active", false);
+                setHover(null);
+            })
+            .style("opacity", 0)
+            .transition()
+            .delay((_, i) => i * 30)
+            .duration(200)
+            .style("opacity", 1);
+    }, [xKey, yKey, colorKey, colorScale, innerW, innerH]);
 
     return (
         <div className="chart-wrap">
-            <svg width={width} height={height} role="img" aria-label={`Scatterplot of ${yKey} versus ${xKey}`}>
-                <g transform={`translate(${MARGIN.left},${MARGIN.top})`}>
-                    {/* Gridlines + axis ticks  */}
-                    {yTicks.map((t) => (
-                        <g key={`y-${t}`} transform={`translate(0,${yScale(t)})`}>
-                            <line x1={0} x2={innerW} className="gridline" />
-                            <text x={-12} dy="0.32em" className="tick-label" textAnchor="end">
-                                {formatTick(t)}
-                            </text>
-                        </g>
-                    ))}
-                    {xTicks.map((t) => (
-                        <g key={`x-${t}`} transform={`translate(${xScale(t)},${innerH})`}>
-                            <line y1={0} y2={-innerH} className="gridline" />
-                            <text y={24} className="tick-label" textAnchor="middle">
-                                {formatTick(t)}
-                            </text>
-                        </g>
-                    ))}
-
-                    {/* Axis titles */}
-                    <text x={innerW / 2} y={innerH + 44} className="axis-title" textAnchor="middle">
-                        {xKey}
-                    </text>
-                    <text transform={`translate(${-56},${innerH / 2}) rotate(-90)`} className="axis-title" textAnchor="middle">
-                        {yKey}
-                    </text>
-
-                    {/* Points */}
-                    {EXPERIMENTS.map((exp, index) => {
-                        const cx = xScale(exp.values[xKey]);
-                        const cy = yScale(exp.values[yKey]);
-                        const fill = colorScale ? colorScale(exp.values[colorKey]) : "var(--accent)";
-                        const isActive = hover?.exp.name === exp.name;
-                        return (
-                            <motion.circle
-                                key={`${exp.name}-${xKey}-${yKey}`}
-                                cx={cx}
-                                cy={cy}
-                                r={isActive ? 9 : 6}
-                                fill={fill}
-                                className={`point ${isActive ? "point-active" : ""}`}
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ duration: 0.2, delay: index * 0.03 }}
-                                onMouseEnter={() => setHover({ exp, cx, cy })}
-                                onMouseLeave={() => setHover(null)}
-                            />
-                        );
-                    })}
-                </g>
-            </svg>
-
+            <svg ref={svgRef} width={width} height={height} role="img" aria-label={`Scatterplot of ${yKey} versus ${xKey}`} />
             {colorKey && colorScale && <ColorLegend colorKey={colorKey} scale={colorScale} />}
-
-            {hover && (
-                <Tooltip
-                    hover={hover}
-                    xKey={xKey}
-                    yKey={yKey}
-                    colorKey={colorKey}
-                    offsetX={MARGIN.left}
-                    offsetY={MARGIN.top}
-                />
-            )}
+            {hover && <Tooltip hover={hover} xKey={xKey} yKey={yKey} colorKey={colorKey} />}
         </div>
     );
 }
 
-// Compact numeric formatting: avoids long float tails on the axis. 
-function formatTick(v: number): string {
-    if (Math.abs(v) >= 1000) return d3.format(".2s")(v);
-    return d3.format(".3~f")(v);
+// Pad a degenerate axis so points aren't stacked on the border.
+function domainFor(key: string): [number, number] {
+    const [min, max] = d3.extent(EXPERIMENTS, (e) => e.values[key]) as [number, number];
+    if (min === max) return [min - 1, max + 1];
+    const pad = (max - min) * 0.05;
+    return [min - pad, max + pad];
 }
 
-function Tooltip({
-    hover,
-    xKey,
-    yKey,
-    colorKey,
-    offsetX,
-    offsetY,
-}: {
-    hover: HoverState;
-    xKey: string;
-    yKey: string;
-    colorKey: string;
-    offsetX: number;
-    offsetY: number;
-}) {
+// Compact numeric formatting: avoids long float tails on the axis.
+function formatTick(v: d3.NumberValue): string {
+    const n = Number(v);
+    return Math.abs(n) >= 1000 ? d3.format(".2s")(n) : d3.format(".3~f")(n);
+}
+
+function Tooltip({ hover, xKey, yKey, colorKey }: { hover: HoverState; xKey: string; yKey: string; colorKey: string }) {
     const v = hover.exp.values;
     return (
-        <div className="tooltip" style={{ left: offsetX + hover.cx + 14, top: offsetY + hover.cy - 8 }}>
+        <div className="tooltip" style={{ left: MARGIN.left + hover.cx + 14, top: MARGIN.top + hover.cy - 8 }}>
             <div className="tooltip-title">{hover.exp.name}</div>
-            {/* {Object.entries(v).map(([key, value]) => (
-                <div className="tooltip-row" key={key}>
-                    <span>{key}</span>
-                    <span>{value}</span>
-                </div>
-            ))} */}
             <div className="tooltip-row">
                 <span>{xKey}</span>
                 <span>{v[xKey]}</span>
@@ -177,10 +122,7 @@ function Tooltip({
 
 function ColorLegend({ colorKey, scale }: { colorKey: string; scale: d3.ScaleSequential<string> }) {
     const [min, max] = scale.domain();
-    const stops = d3.range(0, 1.01, 0.1);
-    const gradient = `linear-gradient(to right, ${stops
-        .map((s) => scale(min + s * (max - min)))
-        .join(", ")})`;
+    const gradient = `linear-gradient(to right, ${d3.range(0, 1.01, 0.1).map((s) => scale(min + s * (max - min))).join(", ")})`;
     return (
         <div className="legend">
             <span className="legend-label">{colorKey}</span>

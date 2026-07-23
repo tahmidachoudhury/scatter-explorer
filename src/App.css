@@ -100,11 +100,15 @@ select:focus {
   display: inline-block;
 }
 
-.gridline {
+.axis .domain {
   stroke: var(--border);
   stroke-width: 0.3;
 }
-.tick-label {
+.axis .tick line {
+  stroke: var(--border);
+  stroke-width: 0.3;
+}
+.axis .tick text {
   fill: var(--muted);
   font-size: 11px;
 }
