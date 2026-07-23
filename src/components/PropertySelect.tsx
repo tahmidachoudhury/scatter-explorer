@@ -1,3 +1,4 @@
+import { FormControl, InputLabel, Select, MenuItem, ListSubheader } from "@mui/material";
 import { isDegenerate, PROPERTIES } from "../lib/data";
 
 interface Props {
@@ -12,24 +13,23 @@ export function PropertySelect({ label, value, onChange, allowNone = false }: Pr
     const inputs = PROPERTIES.filter((p) => p.kind === "input");
     const outputs = PROPERTIES.filter((p) => p.kind === "output");
 
-    const renderOption = (key: string) => {
-        const flat = isDegenerate(key);
-        return (
-            <option key={key} value={key}>
-                {key}
-                {flat ? " (constant)" : ""}
-            </option>
-        );
-    };
+    const renderItem = (key: string) => (
+        <MenuItem key={key} value={key}>
+            {key}
+            {isDegenerate(key) ? " (constant)" : ""}
+        </MenuItem>
+    );
 
     return (
-        <label className="field">
-            <span className="field-label">{label}</span>
-            <select value={value} onChange={(e) => onChange(e.target.value)}>
-                {allowNone && <option value="">None</option>}
-                <optgroup label="Outputs (measurements)">{outputs.map((p) => renderOption(p.key))}</optgroup>
-                <optgroup label="Inputs (ingredients)">{inputs.map((p) => renderOption(p.key))}</optgroup>
-            </select>
-        </label>
+        <FormControl size="small" sx={{ flex: "1 1 200px" }}>
+            <InputLabel>{label}</InputLabel>
+            <Select label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+                {allowNone && <MenuItem value="">None</MenuItem>}
+                <ListSubheader>Outputs (measurements)</ListSubheader>
+                {outputs.map((p) => renderItem(p.key))}
+                <ListSubheader>Inputs (ingredients)</ListSubheader>
+                {inputs.map((p) => renderItem(p.key))}
+            </Select>
+        </FormControl>
     );
 }
